@@ -1,0 +1,107 @@
+---
+title: "Machine Learning"
+author: "Humberto Renteria"
+date: "2023-11-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(caret)
+library(knitr)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+
+traincsv <- read.csv("pml_training.csv")
+testcsv <- read.csv("pml_testing.csv")
+
+```
+
+## Humberto Renteria
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+Let's see the dimensions of our data. Train and testing data.
+
+```{r}
+dim(traincsv)
+dim(testcsv)
+
+```
+
+## Pre Process
+
+We are going to delete those columns that more than 90% of its content is NA and columns with zero variance. 
+
+Also we are going to create data partition for validation set. We will be using Cross Validation method in our train control function. 
+
+```{r pressure, echo=FALSE}
+traincsv <- traincsv[,colMeans(is.na(traincsv)) < .9] 
+traincsv <- traincsv[,-c(1:7)] 
+
+nvz <- nearZeroVar(traincsv)
+traincsv <- traincsv[,-nvz]
+dim(traincsv)
+
+inTrain <- createDataPartition(y=traincsv$classe, p=0.7, list=F)
+train <- traincsv[inTrain,]
+valid <- traincsv[-inTrain,]
+
+control <- trainControl(method="cv", number=3, verboseIter=F)
+```
+
+## Methods to Use
+
+We will be using Random Forest, Decision Tree and Generalized Boosted Model (GBM).
+
+Let's process first Random Forest and its prediction.
+
+```{r rl}
+mod_rf <- train(classe~., data=train, method="rf", trControl = control, tuneLength = 5)
+
+pred_rf <- predict(mod_rf, valid)
+cmrf <- confusionMatrix(pred_rf, factor(valid$classe))
+cmrf
+
+plot(mod_rf)
+```
+
+Let's process Decision trees and its prediction.
+
+```{r ro}
+mod_trees <- train(classe~., data=train, method="rpart", trControl = control, tuneLength = 5)
+fancyRpartPlot(mod_trees$finalModel)
+
+pred_trees <- predict(mod_trees, valid)
+cmtrees <- confusionMatrix(pred_trees, factor(valid$classe))
+cmtrees
+```
+
+Let's process Generalize Boosted Models. 
+
+```{r ra}
+mod_gbm <- train(classe~., data=train, method="gbm", trControl = control, tuneLength = 5, verbose = F)
+
+pred_gbm <- predict(mod_gbm, valid)
+cmgbm <- confusionMatrix(pred_gbm, factor(valid$classe))
+cmgbm
+
+plot(mod_gbm)
+```
+
+## Most accurate
+
+The most accurate method was random forest. Let's make the prediction using that model.
+
+```{r rf}
+pred <- predict(mod_rf, testcsv)
+print(pred)
+```
+
+
+
+
